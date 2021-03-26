@@ -4,7 +4,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-const md5 = require("md5");
+const bcrypt = require("bcrypt");
 
 const app = express();
 
@@ -35,33 +35,37 @@ app.get("/register",function(req,res){
 
 app.post("/register", function(req,res){
   const username = req.body.username;
-  const password = md5(req.body.password);
-  const user = new User({
-    username: username,
-    password: password
-  });
-  user.save(function(err){
-    if(err){
-      console.log(err);
-    }else{
-      res.render("secrets");
-    }
+  const password = req.body.password;
+  bcrypt.hash(password, 10, function(err, hash){
+    const user = new User({
+      username: username,
+      password: hash
+    });
+    user.save(function(err){
+      if(err){
+        console.log(err);
+      }else{
+        res.render("secrets");
+      }
+    });
   });
 });
 
 app.post("/login", function(req,res){
   const username = req.body.username;
-  const password = md5(req.body.password);
+  const password = req.body.password;
   User.findOne({username:username},function(err, foundUser){
     if(err){
       res.render("error",{errorMessage: err});
     }else{
       if(foundUser){
-        if(foundUser.password == password){
-          res.render("secrets");
-        }else{
-          res.render("error",{errorMessage:"Password is incorrect. Please try again."});
-        }
+        bcrypt.compare(password, foundUser.password, function(err, result){
+          if(result === true){
+            res.render("secrets");
+          }else{
+            res.render("error",{errorMessage:"Password is incorrect. Please try again."});
+          }
+        });
       }else{
         res.render("error",{errorMessage: "User not found. Please register first."});
       }
